@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import com.shoppingapp.exceptions.ProductNotFoundException;
 import com.shoppingapp.model.Product;
 import com.shoppingapp.repository.ProductRepository;
 
@@ -29,7 +30,7 @@ public class ProductService {
 		return productRepository.findAll();
 	}
 	
-	public Product findByProductName(String productName) {
+	public Product findByProductName(String productName) throws ProductNotFoundException{
 		Query query = new Query(Criteria.where("productName").is(productName));
 		return mongoTemplate.findOne(query, Product.class);
 	}

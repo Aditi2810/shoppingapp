@@ -22,6 +22,7 @@ import com.shoppingapp.exceptions.EmailAlreadyExistException;
 import com.shoppingapp.model.User;
 import com.shoppingapp.security.JwtService;
 import com.shoppingapp.service.AuthenticationService;
+import com.shoppingapp.service.KafkaProducerService;
 import com.shoppingapp.service.UserService;
 
 import jakarta.validation.Valid;
@@ -44,6 +45,9 @@ public class UserController {
    
 	@Autowired
 	private UserDetailsService userDetailsService;
+	
+	@Autowired
+	private KafkaProducerService kafkaProducerService;
 
 	public static final Logger log = LogManager.getLogger(UserController.class);
 
@@ -57,10 +61,13 @@ public class UserController {
 			userService.findByEmail(user);
 
 		} catch (EmailAlreadyExistException e) {
+			kafkaProducerService.sendMessageToTopic(e.getMessage());
 			return ResponseEntity.badRequest().body(e.getMessage());
 		} catch (Exception e) {
+			kafkaProducerService.sendMessageToTopic(e.getMessage());
 			log.error("Exception in resigterUser() of UserController");
 		}
+		kafkaProducerService.sendMessageToTopic("User " + user.getFirstName() +"Registered Successfully");
 		return ResponseEntity.ok("User Saved Successfully");
 	}
 
@@ -70,12 +77,13 @@ public class UserController {
 		Optional<User> validatedUser = userService.validateUser(username, password);
 		if(validatedUser.isPresent()) {
 			UserDetails user = userDetailsService.loadUserByUsername(username);
-			System.out.println(user);
 			return ResponseEntity.ok(jwtService.generateToken(user));
 		}
 	}catch(Exception e) {
+		kafkaProducerService.sendMessageToTopic("User with emailId " +username+ " not found");
 		log.error("User with emailId: {} not found", username);
 	}
+	kafkaProducerService.sendMessageToTopic("Invalid username or password");
 	return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password"); 
   }
 	
@@ -92,8 +100,10 @@ public class UserController {
 				}
 			}
 		} catch (Exception e) {
+			kafkaProducerService.sendMessageToTopic("User with firstname "+firstName+" not found");
 			log.error("User with firstname: {} not found", firstName);
 		}
+		kafkaProducerService.sendMessageToTopic("Password updated successfully.");
 		return ResponseEntity.status(HttpStatus.OK).body("Password updated successfully.");
 	}
 }
